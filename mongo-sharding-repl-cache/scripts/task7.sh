@@ -85,22 +85,13 @@ db.createCollection("products", {
           bsonType: "number",
           minimum: 0
         },
-        remaining: {
-          bsonType: "array",
-          items: {
-            bsonType: "object",
-            required: ["location", "quantity"],
-            properties: {
-              location: {
-                bsonType: "string",
-                minLength: 1
-              },
-              quantity: {
-                bsonType: "number",
-                minimum: 0
-              }
-            }
-          }
+        location: {
+          bsonType: "string",
+          minLength: 1
+        },
+          quantity: {
+          bsonType: "number",
+          minimum: 0
         },
         attributes: {
           bsonType: "array",
@@ -125,19 +116,23 @@ db.createCollection("products", {
   validationAction: "error"
 });
 
-sh.shardCollection("products", { "category": 1 });
+sh.shardCollection("products", { "product_id": 1, "location": 1 });
 
 db.createCollection("carts", {
   validator: {
     \$jsonSchema: {
       bsonType: "object",
-      required: ["cart_id", "user_id", "items", "status", "created_at", "updated_at", "expires_at"],
+      required: ["cart_id", "user_id", "session_id", "items", "status", "created_at", "updated_at", "expires_at"],
       properties: {
         cart_id: {
           bsonType: "string",
           pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         },
         user_id: {
+          bsonType: "string",
+          pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        session_id: {
           bsonType: "string",
           pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         },
@@ -178,21 +173,40 @@ db.createCollection("carts", {
   validationAction: "error"
 });
 
-sh.shardCollection("carts", { "user_id": "hashed" });
+sh.shardCollection("carts", { "user_id": "hashed", "session_id": "hashed" });
 
 db.orders.createIndex({ "order_id": 1 }, { unique: true });
 db.orders.createIndex({ "user_id": 1 });
 db.orders.createIndex({ "created_at": -1 });
 db.orders.createIndex({ "status": 1 });
 
-db.products.createIndex({ "product_id": 1 }, { unique: true });
+db.products.createIndex({ "location": 1, "product_id": 1 }, { unique: true });
 db.products.createIndex({ "category": 1 });
+db.products.createIndex({ "location": 1 });
 db.products.createIndex({ "name": "text" });
+
+sh.addShardTag("shard1", "Moscow");
+sh.addShardTag("shard2", "Regions");
+
+sh.addTagRange("products",
+    { location: MinKey, product_id: MinKey },
+    { location: MaxKey, product_id: MaxKey },
+    "Regions"
+);
+
+sh.addTagRange("products",
+    { location: "Moscow", product_id: MinKey },
+    { location: "Moscow", product_id: MaxKey },
+    "Moscow"
+);
 
 db.carts.createIndex({ "cart_id": 1 }, { unique: true });
 db.carts.createIndex({ "user_id": 1 }, { unique: true });
 db.carts.createIndex({ "status": 1 });
 db.carts.createIndex({ "expires_at": 1 });
+
+sh.enableBalancing("orders");
+sh.enableBalancing("products");
 
 db.orders.insertOne({
   order_id: "123e4567-e89b-12d3-a456-426614174000",
@@ -210,25 +224,13 @@ db.orders.insertOne({
   location: "Ekaterinburg"
 });
 
-db.products.insertOne({
+db.products.insertMany([{
   product_id: "823e4567-e89b-12d3-a456-426614174030",
   name: "Wireless Bluetooth Headphones",
   category: "Electronics",
   price: 89.99,
-  remaining: [
-    {
-      location: "Ekaterinburg",
-      quantity: 15
-    },
-    {
-      location: "Moscow",
-      quantity: 25
-    },
-    {
-      location: "Sochi",
-      quantity: 8
-    }
-  ],
+  location: "Ekaterinburg",
+  quantity: 15,
   attributes: [
     {
       key: "brand",
@@ -247,7 +249,60 @@ db.products.insertOne({
       value: "Bluetooth 5.0"
     }
   ]
-});
+},
+{
+  product_id: "823e4567-e89b-12d3-a456-426614174030",
+  name: "Wireless Bluetooth Headphones",
+  category: "Electronics",
+  price: 89.99,
+  location: "Moscow",
+  quantity: 25,
+  attributes: [
+    {
+      key: "brand",
+      value: "SuperCool"
+    },
+    {
+      key: "color",
+      value: "Black"
+    },
+    {
+      key: "battery_life",
+      value: "20 hours"
+    },
+    {
+      key: "connectivity",
+      value: "Bluetooth 5.0"
+    }
+  ]
+},
+{
+  product_id: "823e4567-e89b-12d3-a456-426614174030",
+  name: "Wireless Bluetooth Headphones",
+  category: "Electronics",
+  price: 89.99,
+  location: "Sochi",
+  quantity: 8,
+  attributes: [
+    {
+      key: "brand",
+      value: "SuperCool"
+    },
+    {
+      key: "color",
+      value: "Black"
+    },
+    {
+      key: "battery_life",
+      value: "20 hours"
+    },
+    {
+      key: "connectivity",
+      value: "Bluetooth 5.0"
+    }
+  ]
+}
+]);
 
 db.carts.insertOne({
   cart_id: "c23e4567-e89b-12d3-a456-426614174070",

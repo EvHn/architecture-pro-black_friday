@@ -48,13 +48,8 @@ exit();
 EOF
 
 docker compose exec -T mongos_router mongosh --port 27026 <<EOF
-sh.addShard( "shard1/shard1.1:27020");
-sh.addShard( "shard1/shard1.2:27021");
-sh.addShard( "shard1/shard1.3:27022");
-
-sh.addShard( "shard2/shard2.1:27023");
-sh.addShard( "shard2/shard2.2:27024");
-sh.addShard( "shard2/shard2.3:27025");
+sh.addShard( "shard1/shard1.1:27020,shard1.2:27021,shard1.3:27022");
+sh.addShard( "shard2/shard2.1:27023,shard2.2:27024,shard2.3:27025");
 
 sh.enableSharding("somedb");
 sh.shardCollection("somedb.helloDoc", { "name" : "hashed" } );

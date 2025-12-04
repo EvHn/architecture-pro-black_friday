@@ -1,15 +1,12 @@
 services:
-  redis_1:
+  redis:
     image: "redis:latest"
-    container_name: redis_1
+    container_name: redis
     ports:
       - "6379"
     networks:
       app-network:
         ipv4_address: 173.17.0.2
-    volumes:
-      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
 
   configSrv.1:
     image: mongo:latest
@@ -242,6 +239,10 @@ services:
     restart: always
     ports:
       - "27026:27026"
+    depends_on:
+      - configSrv.1
+      - configSrv.2
+      - configSrv.3
     networks:
       app-network:
         ipv4_address: 173.17.0.17
@@ -272,9 +273,9 @@ services:
       app-network:
         ipv4_address: 173.17.0.18
     environment:
-      MONGODB_URL: "mongodb://173.17.0.17:27026"
+      MONGODB_URL: "mongodb://mongos_router:27026"
       MONGODB_DATABASE_NAME: "somedb"
-      REDIS_URL: "redis://173.17.0.2:6379"
+      REDIS_URL: "redis://redis:6379"
 
 volumes:
   config-data.1:
@@ -286,7 +287,6 @@ volumes:
   shard2.1-data:
   shard2.2-data:
   shard2.3-data:
-  redis_1_data: { }
 
 networks:
   app-network:
